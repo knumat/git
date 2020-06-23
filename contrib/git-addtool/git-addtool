@@ -1,0 +1,48 @@
+#!/bin/bash
+
+set -e   # exit on first error
+
+# check that we are in the root of the git repo
+if [ ! -d ".git" ]; then
+    echo "addtool can only (currently) be run from the root of your local git repo"
+    exit 1
+fi
+
+# check that file exists
+if [ ! -f "$1" ]; then
+    echo "Please specify a file that currently exists in the working copy"
+    exit 1
+fi
+
+# checkout HEAD version of file as read-only
+HEAD=/tmp/HEAD_${1##*/}
+rm -f "$HEAD"
+git show "HEAD:$1" >"$HEAD" 2>/dev/null || true
+chmod 444 "$HEAD" 2>/dev/null || true
+
+# checkout index version of file
+INDEX=/tmp/INDEX_${1##*/}
+rm -f "$INDEX"
+git show ":$1" >"$INDEX" 2>/dev/null || true
+
+# display 3-way diff
+meld "$HEAD" "$INDEX" "$1"
+
+# hash object and write to database
+NEW_HASH=`git hash-object -w "$INDEX"`
+
+# Determine if the file should be executable (100755) or not (100644)
+if [[ -x "$1" ]]; then
+    PERM_GIT=100755
+else
+    PERM_GIT=100644
+fi
+
+# register new version of file in the index
+git update-index --cacheinfo $PERM_GIT,$NEW_HASH,$1
+
+# remove temp files
+chmod 666 $HEAD
+rm $HEAD
+rm $INDEX
+
