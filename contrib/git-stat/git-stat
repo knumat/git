@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e   # exit on first error
+
+echo
+echo "=== Staged changes ==="
+git diff --cached --stat
+echo 
+
+echo "=== Unstaged changes ==="
+git diff --stat
+echo
+
